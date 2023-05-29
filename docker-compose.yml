@@ -12,7 +12,7 @@ services:
     ports:
       - "${SERVER_PORT}:8000"
     volumes:
-      - ./api:/api
+      - ./api:/storeAPI/api
     command: >
       sh -c "python manage.py makemigrations &&
              python manage.py migrate &&
