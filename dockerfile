@@ -5,9 +5,9 @@ ENV PYTHONUNBUFFERED=1
 
 COPY ./requirements.dev.txt /requirements/requirements.dev.txt
 COPY ./requirements.prod.txt /requirements/requirements.prod.txt
-COPY ./data .
 
 WORKDIR /storeAPI
+COPY ./data ./data
 
 COPY ./api ./api
 
