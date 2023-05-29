@@ -8,7 +8,7 @@ COPY ./requirements.prod.txt /requirements/requirements.prod.txt
 
 WORKDIR /api
 
-COPY ./app .
+COPY ./api .
 
 ARG DEV=false
 
