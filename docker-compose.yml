@@ -14,9 +14,9 @@ services:
     volumes:
       - ./api:/storeAPI/api
     command: >
-      sh -c "python manage.py makemigrations &&
-             python manage.py migrate &&
-             python manage.py runserver 0.0.0.0:8000"
+      sh -c "python ./api/manage.py makemigrations &&
+             python ./api/manage.py migrate &&
+             python ./api/manage.py runserver 0.0.0.0:8000"
     environment:
       - POSTGRES_DB_HOST=db
       - POSTGRES_DB_NAME=${POSTGRES_DB_NAME}
