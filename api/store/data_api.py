@@ -1,5 +1,7 @@
 import pandas as pd
-from store.models import Store
+from django.db import connection
+from store.models import Store, BusinessHour, StoreActivity
+from django.db import IntegrityError
 from typing import Any, Dict, Hashable, Iterator, List, Tuple
 import os
 import pandas as pd
@@ -19,17 +21,31 @@ class DataAPI:
         self.status_csv_path = os.path.join(self.data_dir, 'status.csv')
         self.timezone_csv_path = os.path.join(self.data_dir, 'timezones.csv')
         self.business_csv_path = os.path.join(self.data_dir, 'hours.csv')
-        self.batch_size = 1000
+        self.paths = [self.status_csv_path,
+                      self.timezone_csv_path, self.business_csv_path]
+        self.batch_size = 10000
+
+        # for path in self.paths:
+        # self.add_stores()
+
+        self.transform_csv(self.business_csv_path)
+        self.transform_csv(self.status_csv_path)
+        print(f"tranform {self.business_csv_path}")
 
     @staticmethod
     def read_csv(file_path: str) -> csv_data:
         print("running")
         df = pd.read_csv(file_path)
-        # df.drop_duplicates(
-        #     subset=['store_id', 'timestamp_utc'], inplace=True)
         data: csv_data = df.to_dict(orient='records')
-        print(len(data))
+        print("Number of items:", len(data))
         return data
+
+    def transform_csv(self, file_path: str):
+        store_df = pd.read_csv(self.timezone_csv_path)
+        df = pd.read_csv(file_path)
+        # valid_store_ids = Store.objects.values_list('store_id', flat=True)
+        df = df[df['store_id'].isin(store_df['store_id'])]
+        df.to_csv(file_path, index=False)
 
     def store_status_data(self):
         data = DataAPI.read_csv(self.status_csv_path)
@@ -62,3 +78,32 @@ class DataAPI:
         Store.objects.bulk_create(
             stores
         )
+
+    def add_business_hours(self):
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                COPY store_businesshour ("store_id", "week_day", "start_time", "end_time")
+                FROM %s
+                WITH (FORMAT CSV, DELIMITER ',', NUll '', HEADER)
+            """, ['/storeAPI/data/hours.csv'])
+
+    def add_stores(self):
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("""
+                            COPY store_store ("store_id", "timezone")
+                            FROM %s
+                            WITH (FORMAT CSV, DELIMITER ',', NUll '', HEADER)
+                        """, ['/storeAPI/data/timezones.csv'])
+        except IntegrityError as e:
+            print(f"Stores Are Already Added: {e!s}")
+
+    def add_store_status(self):
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                    COPY store_storeactivity ("store_id", "status", "timestamp")
+                    FROM %s
+                    WITH (FORMAT CSV, DELIMITER ',', NUll '', HEADER)
+                    ON CONFLICT ("store_id") DO UPDATE
+                    SET status = EXCLUDED.status, timestamp = EXCLUDED.timestamp
+                """, ['/storeAPI/data/status.csv'])

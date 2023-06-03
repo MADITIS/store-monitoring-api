@@ -13,6 +13,7 @@ services:
       - "${SERVER_PORT}:8000"
     volumes:
       - ./api:/storeAPI/api
+      - ./data:/storeAPI/data
     command: >
       sh -c "python ./api/manage.py makemigrations &&
              python ./api/manage.py migrate &&
@@ -32,10 +33,12 @@ services:
     image: bitnami/postgresql:latest
     volumes:
       - db-data:/var/lib/postgresql/data
+      - ./data:/storeAPI/data
     environment:
       - POSTGRES_DB=${POSTGRES_DB_NAME}
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASS}
+      - POSTGRESQL_POSTGRES_PASSWORD=${POSTGRESQL_SUPERUSER_PASS}
 
 volumes:
   db-data:

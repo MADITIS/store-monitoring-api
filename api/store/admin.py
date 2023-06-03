@@ -2,6 +2,8 @@ from django.contrib import admin
 from django.contrib.admin import ModelAdmin
 from store.models import (
     Store,
+    BusinessHour,
+    StoreActivity
     # StoreStatus,
     # BusinessHours,
     # StoreTimezone
@@ -10,6 +12,16 @@ from store.models import (
 
 @admin.register(Store)
 class StoreAdmin(ModelAdmin):
+    ...
+
+
+@admin.register(BusinessHour)
+class BusinessHoursAdmin(ModelAdmin):
+    ...
+
+
+@admin.register(StoreActivity)
+class StoreActivityAdmin(ModelAdmin):
     ...
 
 
