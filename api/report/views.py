@@ -38,7 +38,7 @@ class GetReportView(APIView):
         df = pd.DataFrame(report)
 
         response = HttpResponse(content_type='text/csv')
-        response['Content-Disposition'] = 'attachment; filename="test.csv"'
+        response['Content-Disposition'] = 'attachment; filename="report.csv"'
 
         csv_buffer = StringIO()
         df.to_csv(csv_buffer, index=False, encoding='utf-8')
