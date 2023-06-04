@@ -17,6 +17,9 @@ services:
     command: >
       sh -c "python ./api/manage.py makemigrations &&
              python ./api/manage.py migrate &&
+             python ./api/manage.py addstores &&
+             python ./api/manage.py addstoreshours &&
+             python ./api/manage.py addstorestatus &&
              python ./api/manage.py runserver 0.0.0.0:8000"
     environment:
       - POSTGRES_DB_HOST=db
@@ -28,6 +31,7 @@ services:
       - DJANGO_ALLOWED_HOSTS=${DJANGO_ALLOWED_HOSTS}
     depends_on:
       - db
+      - redis
 
   db:
     image: bitnami/postgresql:latest
@@ -39,6 +43,11 @@ services:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASS}
       - POSTGRESQL_POSTGRES_PASSWORD=${POSTGRESQL_SUPERUSER_PASS}
+
+  redis:
+    image: bitnami/redis:latest
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
 
 volumes:
   db-data:

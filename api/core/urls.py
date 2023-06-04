@@ -16,9 +16,10 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
-from report.views import ReportView
+from report.views import ReportView, GetReportView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('trigger_report/', ReportView.as_view(), name='target report'),
+    path('get_report/<str:id>/', GetReportView.as_view(), name='get report'),
 ]

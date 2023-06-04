@@ -2,36 +2,43 @@ from typing import Dict, List, Tuple
 from store.models import BusinessHour
 from store.models import Store, StoreActivity
 import pytz
-import asyncio
-import json
-from core.redis import cache_report_in_redis
+import datetime
+from core.redis import cache_report, add_report_key
 from django.db.models import F
-
-from datetime import datetime, timedelta, time
 
 
 class Report:
-    def __init__(self) -> None:
-        self.report = {}
+    def generate_report(self, report_id):
+        add_report_key(report_id)
+        reports = []
+        stores = Store.objects.all()
 
-    async def generate_report(self, stores):
-        tasks = []
         for store in stores:
-            tasks.append(asyncio.create_task(self.uptime_last_hour(store)))
-            tasks.append(asyncio.create_task(
-                self.calculate_uptime_downtime(store)))
+            result = self.uptime_last_hour(store)
+            if result:
+                uptime_last_hour, downtime_last_hour = result
+            else:
+                return
+            hours = self.calculate_uptime_downtime(store)
 
-        await asyncio.gather(*tasks)
-        if self.report:
-            await cache_report_in_redis(self.report)
+            store_report = {
+                'store': store.store_id,
+                'uptime_last_hour': uptime_last_hour,
+                'downtime_last_hour': downtime_last_hour,
+                **hours,
+            }
 
-    async def uptime_last_hour(self, store: Store):
+            reports.append(store_report)
+        if reports:
+            cache_report(report=reports, report_id=report_id, )
+
+    def uptime_last_hour(self, store: Store):
         store_id: int = store.store_id
 
-        current_datetime = datetime.now(pytz.timezone(store.timezone))
+        current_datetime = datetime.datetime.now(pytz.timezone(store.timezone))
         last_hour_end = current_datetime.time()
 
-        previous_datetime = current_datetime - timedelta(hours=1)
+        previous_datetime = current_datetime - datetime.timedelta(hours=1)
         last_hour_start = previous_datetime.time()
 
         try:
@@ -60,8 +67,8 @@ class Report:
             stores = StoreActivity.objects.filter(
                 store__store_id=store_id, timestamp__date=latest_date).annotate(time=F('timestamp__time'), status=F('status')).values()
 
-        self.__interpolate(business_hour, stores,
-                           last_hour_start, last_hour_end)
+        return self.__interpolate(business_hour, stores,
+                                  last_hour_start, last_hour_end)
 
     def __interpolate(self, business_hour: BusinessHour, stores, last_hour_start, last_hour_end):
         downtime_last_hour = 0
@@ -69,12 +76,12 @@ class Report:
         start_hour = business_hour.start_time
         end_hour = business_hour.end_time
 
-        intervals: List[Dict[str, time]] = [
+        intervals: List[Dict[str, datetime.time]] = [
             {"start": start_hour},
             {"end": end_hour},
         ]
         for i in stores:
-            uptime: time = i['time']
+            uptime: datetime.time = i['time']
             status: str = i['status']
             if business_hour.end_time <= uptime or business_hour.start_time >= uptime:
                 continue
@@ -92,14 +99,14 @@ class Report:
                     )
         intervals.sort(key=lambda x: list(x.values())[0])
         if not intervals:
-            downtime_last_hour = datetime.strptime(str(business_hour.end_time), '%H:%M:%S').time(
-            ).hour - datetime.strptime(str(business_hour.start_time), '%H:%M:%S').time().minute
+            downtime_last_hour = datetime.datetime.strptime(str(business_hour.end_time), '%H:%M:%S').time(
+            ).hour - datetime.datetime.strptime(str(business_hour.start_time), '%H:%M:%S').time().minute
         if last_hour_end > end_hour:
             last_hour_end = end_hour
         elif last_hour_start < start_hour:
             last_hour_start = start_hour
-            uptime_last_hour = datetime.strptime(str(last_hour_end), '%H:%M:%S').time(
-            ).hour - datetime.strptime(str(last_hour_start), '%H:%M:%S').time().minute
+            uptime_last_hour = datetime.datetime.strptime(str(last_hour_end), '%H:%M:%S').time(
+            ).hour - datetime.datetime.strptime(str(last_hour_start), '%H:%M:%S').time().minute
 
         for i in range(1, len(intervals)):
             interval_start = list(intervals[i-1].values())[0]
@@ -108,28 +115,27 @@ class Report:
 
             if interval_start <= last_hour_start and interval_end >= last_hour_end:
                 if interval_status == 'active':
-                    uptime_last_hour += (last_hour_end -
-                                         last_hour_start).total_seconds() / 60
+                    uptime_last_hour += (datetime.datetime.combine(datetime.date.today(), last_hour_end) -
+                                         datetime.datetime.combine(datetime.date.today(), last_hour_start)).total_seconds() / 60
                 else:
-                    downtime_last_hour += (last_hour_end -
-                                           last_hour_start).total_seconds() / 60
+                    downtime_last_hour += (datetime.datetime.combine(datetime.date.today(), last_hour_end) -
+                                           datetime.datetime.combine(datetime.date.today(), last_hour_start)).total_seconds() / 60
             elif interval_start <= last_hour_start < interval_end:
                 if interval_status == 'active':
-                    uptime_last_hour += (interval_end -
-                                         last_hour_start).total_seconds() / 60
+                    uptime_last_hour += (datetime.datetime.combine(datetime.date.today(), interval_end) -
+                                         datetime.datetime.combine(datetime.date.today(), last_hour_start)).total_seconds() / 60
                 else:
-                    downtime_last_hour += (interval_end -
-                                           last_hour_start).total_seconds() / 60
+                    downtime_last_hour += (datetime.datetime.combine(datetime.date.today(), interval_end) -
+                                           datetime.datetime.combine(datetime.date.today(), last_hour_start)).total_seconds() / 60
             elif interval_start < last_hour_end <= interval_end:
                 if interval_status == 'active':
-                    uptime_last_hour += (last_hour_end -
-                                         interval_start).total_seconds() / 60
+                    uptime_last_hour += (datetime.datetime.combine(datetime.date.today(), last_hour_end) -
+                                         datetime.datetime.combine(datetime.date.today(), interval_start)).total_seconds() / 60
                 else:
-                    downtime_last_hour += (last_hour_end -
-                                           interval_start).total_seconds() / 60
+                    downtime_last_hour += (datetime.datetime.combine(datetime.date.today(), last_hour_end) -
+                                           datetime.datetime.combine(datetime.date.today(), interval_start)).total_seconds() / 60
 
-        self.report["uptime_last_hour"] = uptime_last_hour
-        self.report["downtime_last_hour"] = downtime_last_hour
+        return uptime_last_hour, downtime_last_hour
 
     @staticmethod
     def calculate_time_diff(start_time, end_time):
@@ -137,15 +143,15 @@ class Report:
         ), end_time) - datetime.datetime.combine(datetime.date.today(), start_time)
         return diff.total_seconds() / 3600
 
-    async def calculate_uptime_downtime(self, store):
-        current_datetime = datetime.now(pytz.timezone(store.timezone))
+    def calculate_uptime_downtime(self, store):
+        current_datetime = datetime.datetime.now(pytz.timezone(store.timezone))
         uptime_last_day = 0
         downtime_last_day = 0
         uptime_last_week = 0
         downtime_last_week = 0
 
-        last_day_start = current_datetime - timedelta(days=1)
-        last_week_start = current_datetime - timedelta(weeks=1)
+        last_day_start = current_datetime - datetime.timedelta(days=1)
+        last_week_start = current_datetime - datetime.timedelta(weeks=1)
 
         try:
             business_hour = BusinessHour.objects.get(
@@ -202,13 +208,6 @@ class Report:
                     uptime_last_week += time_diff
                 else:
                     downtime_last_week += time_diff
-        self.report["uptime_last_day"] = uptime_last_day
-        self.report["uptime_last_week"] = uptime_last_week
-        self.report["downtime_last_day"] = downtime_last_day
-        self.report["downtime_last_week"] = downtime_last_day
 
-        return uptime_last_day, downtime_last_day, uptime_last_week, downtime_last_week
-
-    def start_process(self):
-        stores = Store.objects.all()
-        asyncio.run(self.generate_report(stores))
+        return {"uptime_last_day": uptime_last_day, "downtime_last_day": downtime_last_day,
+                "uptime_last_week": uptime_last_week, "downtime_last_week": downtime_last_week}
