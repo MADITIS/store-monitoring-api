@@ -32,6 +32,8 @@ This is a web application for managing store report. It provides a REST API for 
 ## Installation
 
 1. Clone the repository:
+2. docker-compose build
+3. docker-compose up
 
 ## Usage
 
