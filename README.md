@@ -136,9 +136,9 @@ To calculate the uptime and downtime within the last hour, the `__interpolate` m
 
 This project was built using the following technologies:
 
-- ~[Docker Compose](https://docs.docker.com/compose/)~
-- ~[Django](https://www.djangoproject.com/)~
-- ~[Django REST framework](https://www.django-rest-framework.org/)~
-- ~[PostgreSQL](https://www.postgresql.org/)~
-- ~[Redis](https://redis.io/)~
+- [Docker Compose](https://docs.docker.com/compose/)
+- [Django](https://www.djangoproject.com/)
+- [Django REST framework](https://www.django-rest-framework.org/)
+- [PostgreSQL](https://www.postgresql.org/)
+- [Redis](https://redis.io/)
 
