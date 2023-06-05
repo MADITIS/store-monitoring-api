@@ -18,7 +18,6 @@
 - [Features](#features)
 - [Methods](#methods)
 - [Credits](#credits)
-- [References](#references)
 
 ## Description
 
