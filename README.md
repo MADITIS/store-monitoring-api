@@ -41,10 +41,12 @@ The API can be accessed through the following endpoints:
 
 1. **/trigger_report** - This endpoint triggers report generation from the data provided (stored in DB).
     - No input.
+    - Response: `report_id`
     - `GET` request.
 2. **/get_report/report_id** - This endpoint returns the status of the report or the CSV.
-    - Input - report_id..
+    - Input - `report_id`
     - `GET` request.
+    - Response: `str` or `report.csv`
 
 The server port is set to Django's default port, which is 8000.
 
